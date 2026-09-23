@@ -39,8 +39,8 @@ curl -fsSL https://get.docker.com | sh
 Clone le depot (une fois qu'il est pousse sur GitHub, voir etape 5) :
 
 ```bash
-git clone https://github.com/<ton-compte>/<ton-repo>.git /opt/novasneak
-cd /opt/novasneak
+git clone https://github.com/<ton-compte>/<ton-repo>.git /var/www/novasneak
+cd /var/www/novasneak
 ```
 
 Cree le fichier `.env` de production a partir du modele :
@@ -174,7 +174,7 @@ Dans le depot GitHub : **Settings → Secrets and variables → Actions → New 
 | `VPS_HOST` | IP ou nom d'hote du VPS |
 | `VPS_USER` | utilisateur SSH (ex. `root` ou `deploy`) |
 | `VPS_SSH_KEY` | contenu du fichier `deploy_key` (la cle **privee**, en entier) |
-| `VPS_DEPLOY_PATH` | `/opt/novasneak` (ou le chemin choisi a l'etape 2) |
+| `VPS_DEPLOY_PATH` | `/var/www/novasneak` (ou le chemin choisi a l'etape 2) |
 
 Supprime ensuite `deploy_key` et `deploy_key.pub` de ta machine locale une fois les secrets enregistres (ils ne doivent pas trainer dans le repo).
 
@@ -193,7 +193,7 @@ A partir de maintenant, chaque `git push` sur `main` declenche automatiquement (
 - **Logs** : `docker compose logs -f backend` (ou `frontend`, `umami`, etc.)
 - **Mettre a jour manuellement** (sans passer par le CI/CD), adapte le `-f` a ton option :
   ```bash
-  cd /opt/novasneak
+  cd /var/www/novasneak
   git pull
   docker compose -f docker-compose.yml -f docker-compose.prod.nginx.yml up -d --build
   ```
