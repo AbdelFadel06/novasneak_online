@@ -1,0 +1,32 @@
+# Variant of docker-compose.prod.yml for a VPS that already has other sites
+# in production, served by nginx installed directly on the host (not in
+# Docker). No Caddy here — nginx stays the only thing on ports 80/443, and
+# these containers bind to 127.0.0.1 only (never reachable directly from the
+# internet, only via the nginx vhost you add — see DEPLOY.md "Option B").
+#
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.nginx.yml up -d --build
+services:
+  backend:
+    environment:
+      DJANGO_DEBUG: "false"
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8020}:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        NEXT_PUBLIC_API_URL: https://${DOMAIN}/api
+        NEXT_PUBLIC_UMAMI_SRC: https://${UMAMI_DOMAIN}/script.js
+        NEXT_PUBLIC_UMAMI_WEBSITE_ID: ${NEXT_PUBLIC_UMAMI_WEBSITE_ID:-}
+    environment:
+      NEXT_PUBLIC_API_URL: https://${DOMAIN}/api
+      NEXT_PUBLIC_UMAMI_SRC: https://${UMAMI_DOMAIN}/script.js
+      NEXT_PUBLIC_UMAMI_WEBSITE_ID: ${NEXT_PUBLIC_UMAMI_WEBSITE_ID:-}
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-3020}:3000"
+
+  umami:
+    ports:
+      - "127.0.0.1:${UMAMI_PORT:-3021}:3000"

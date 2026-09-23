@@ -1,12 +1,13 @@
 # Deploiement en production (VPS + CI/CD)
 
-## Vue d'ensemble
+## Deux facons de deployer
 
-- **Caddy** sert de reverse proxy et gere le HTTPS automatiquement (certificats Let's Encrypt, renouvellement automatique). C'est le seul service expose sur Internet (ports 80/443).
-- **backend**, **frontend**, **umami**, les deux bases Postgres : uniquement accessibles entre conteneurs, jamais directement depuis Internet.
-- Le deploiement se fait par `git pull` + rebuild Docker sur le VPS, declenche automatiquement par GitHub Actions a chaque push sur `main`.
+- **Option A — VPS dedie** : rien d'autre ne tourne sur ce serveur. Caddy gere les ports 80/443 et le HTTPS automatiquement.
+- **Option B — VPS partage, nginx deja present** : d'autres sites tournent deja sur ce VPS, servis par nginx installe directement sur le serveur (hors Docker). Les ports 80/443 sont deja pris — on ne touche pas a Caddy, les conteneurs NovaSneak restent en local (`127.0.0.1`) et nginx ajoute juste un nouveau vhost qui pointe vers eux.
 
-Il te faut : un VPS (Ubuntu/Debian recommande) avec Docker installe, et un nom de domaine dont tu controles le DNS.
+Si tu as deja d'autres sites en prod sur ce VPS avec nginx : **suis l'Option B**, pas l'Option A.
+
+Dans les deux cas il te faut un nom de domaine dont tu controles le DNS.
 
 ## 1. Preparer le DNS
 
@@ -19,15 +20,23 @@ analytics.example.com A    <IP_DU_VPS>
 
 (remplace `example.com` par ton vrai domaine — le sous-domaine `analytics.` sert au dashboard Umami)
 
+La propagation DNS peut prendre de quelques minutes a quelques heures. Verifie avec `dig example.com` avant de continuer.
+
 ## 2. Preparer le VPS
 
-Connecte-toi en SSH, installe Docker si besoin :
+Connecte-toi en SSH. Verifie si Docker est deja installe :
+
+```bash
+docker --version && docker compose version
+```
+
+Si la commande echoue, installe Docker :
 
 ```bash
 curl -fsSL https://get.docker.com | sh
 ```
 
-Clone le depot (une fois qu'il est pousse sur GitHub, voir etape 4) :
+Clone le depot (une fois qu'il est pousse sur GitHub, voir etape 5) :
 
 ```bash
 git clone https://github.com/<ton-compte>/<ton-repo>.git /opt/novasneak
@@ -47,30 +56,61 @@ Points importants dans `.env` :
 - `POSTGRES_PASSWORD`, `UMAMI_APP_SECRET` : genere avec `openssl rand -hex 32`
 - `DJANGO_SUPERUSER_PASSWORD` : mot de passe fort pour le compte admin
 - `DJANGO_ALLOWED_HOSTS` et `CORS_ALLOWED_ORIGINS` : doivent correspondre a `DOMAIN`
+- **Option B uniquement** : `BACKEND_PORT` / `FRONTEND_PORT` / `UMAMI_PORT` — verifie qu'ils sont libres sur ce VPS (`sudo ss -ltnp | grep -E '8020|3020|3021'` ne doit rien retourner) ; si un de tes projets existants les utilise deja, change-les ici et dans `deploy/nginx-novasneak.conf.example` a l'etape suivante.
 
-## 3. Premier deploiement (manuel)
+## 3. Premier deploiement
+
+### Option A — VPS dedie (Caddy)
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-```
-
-Les migrations, la collecte des fichiers statiques et la creation du compte admin se font automatiquement au demarrage du conteneur backend. Verifie que tout tourne :
-
-```bash
-docker compose ps
 docker compose logs caddy --tail=30   # doit confirmer l'obtention du certificat HTTPS
 ```
 
-Le site est alors accessible sur `https://example.com`, l'admin maison sur `https://example.com/admin`, l'admin Django sur `https://example.com/django-admin/`.
+Le site est alors accessible directement sur `https://example.com`.
+
+### Option B — VPS partage (nginx existant)
+
+D'abord, lance uniquement les conteneurs (sans Caddy, ports lies a `127.0.0.1` seulement) :
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.nginx.yml up -d --build
+docker compose ps   # verifie que tout est "Up"
+curl -I http://127.0.0.1:3020   # doit repondre 200, confirme que le frontend tourne
+```
+
+Ensuite, ajoute le vhost nginx :
+
+```bash
+sudo cp deploy/nginx-novasneak.conf.example /etc/nginx/sites-available/novasneak
+sudo nano /etc/nginx/sites-available/novasneak   # remplace les CHANGE-ME par tes vrais domaines
+sudo ln -s /etc/nginx/sites-available/novasneak /etc/nginx/sites-enabled/
+sudo nginx -t   # verifie la config avant de recharger
+sudo systemctl reload nginx
+```
+
+Le site est alors accessible en HTTP sur `http://example.com`. Pour activer le HTTPS avec certbot (comme pour tes autres sites) :
+
+```bash
+sudo certbot --nginx -d example.com -d analytics.example.com
+```
+
+Certbot modifie automatiquement le vhost pour rediriger vers HTTPS et renouvelle le certificat tout seul.
+
+### Dans les deux cas
+
+Les migrations, la collecte des fichiers statiques et la creation du compte admin se font automatiquement au demarrage du conteneur backend — pas d'etape manuelle a faire pour ca.
+
+L'admin maison est sur `https://example.com/admin`, l'admin Django sur `https://example.com/django-admin/`.
 
 ### Configurer Umami
 
 1. Va sur `https://analytics.example.com`, connecte-toi avec `admin` / `umami`, **change immediatement ce mot de passe**.
 2. Cree un site avec le domaine `example.com`, copie son **Website ID**.
 3. Ajoute-le dans `.env` : `NEXT_PUBLIC_UMAMI_WEBSITE_ID=<id copie>`
-4. Redeploie juste le frontend pour l'activer :
+4. Redeploie juste le frontend pour l'activer (adapte le nom du fichier `-f` a ton option) :
    ```bash
-   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build frontend
+   docker compose -f docker-compose.yml -f docker-compose.prod.nginx.yml up -d --build frontend
    ```
 
 ### Peupler avec des produits de demo (optionnel)
@@ -79,7 +119,14 @@ Le site est alors accessible sur `https://example.com`, l'admin maison sur `http
 docker compose exec backend python manage.py seed_demo
 ```
 
-## 4. Pousser le code sur GitHub
+## 4. Verifier que rien d'autre n'a ete casse (Option B)
+
+```bash
+sudo nginx -t                 # la config nginx globale reste valide
+curl -I https://<un-autre-de-tes-sites>   # tes autres sites repondent toujours normalement
+```
+
+## 5. Pousser le code sur GitHub
 
 Depuis ta machine locale (pas le VPS) :
 
@@ -90,7 +137,19 @@ git push -u origin main
 
 (ou cree le depot manuellement sur github.com puis `git remote add origin <url>` + `git push -u origin main`)
 
-## 5. Activer le CI/CD
+## 6. Activer le CI/CD
+
+D'abord, adapte `.github/workflows/deploy.yml` : dans l'etape `deploy`, la ligne
+
+```yaml
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+doit devenir, si tu es en **Option B** :
+
+```yaml
+docker compose -f docker-compose.yml -f docker-compose.prod.nginx.yml up -d --build
+```
 
 ### Cle SSH dediee au deploiement
 
@@ -131,10 +190,10 @@ A partir de maintenant, chaque `git push` sur `main` declenche automatiquement (
   ```bash
   docker compose exec -T db pg_dump -U novasneak novasneak > backup-$(date +%F).sql
   ```
-- **Logs** : `docker compose logs -f backend` (ou `frontend`, `caddy`, etc.)
-- **Mettre a jour manuellement** (sans passer par le CI/CD) :
+- **Logs** : `docker compose logs -f backend` (ou `frontend`, `umami`, etc.)
+- **Mettre a jour manuellement** (sans passer par le CI/CD), adapte le `-f` a ton option :
   ```bash
   cd /opt/novasneak
   git pull
-  docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+  docker compose -f docker-compose.yml -f docker-compose.prod.nginx.yml up -d --build
   ```
