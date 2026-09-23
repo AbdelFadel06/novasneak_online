@@ -1,0 +1,21 @@
+# Env
+.env
+
+# Python
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/staticfiles/
+backend/media/
+backend/db_tmp.sqlite3
+*.sqlite3
+
+# Node
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/next-env.d.ts
+frontend/tsconfig.tsbuildinfo
+
+# OS
+.DS_Store

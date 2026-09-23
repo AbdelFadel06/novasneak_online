@@ -1,0 +1,43 @@
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# Explicit -f flags mean docker-compose.override.yml (dev-only) is NOT
+# applied here, so none of backend/frontend/umami publish ports directly —
+# only Caddy is reachable from outside, on 80/443.
+services:
+  backend:
+    environment:
+      DJANGO_DEBUG: "false"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        NEXT_PUBLIC_API_URL: https://${DOMAIN}/api
+        NEXT_PUBLIC_UMAMI_SRC: https://${UMAMI_DOMAIN}/script.js
+        NEXT_PUBLIC_UMAMI_WEBSITE_ID: ${NEXT_PUBLIC_UMAMI_WEBSITE_ID:-}
+    environment:
+      NEXT_PUBLIC_API_URL: https://${DOMAIN}/api
+      NEXT_PUBLIC_UMAMI_SRC: https://${UMAMI_DOMAIN}/script.js
+      NEXT_PUBLIC_UMAMI_WEBSITE_ID: ${NEXT_PUBLIC_UMAMI_WEBSITE_ID:-}
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN}
+      UMAMI_DOMAIN: ${UMAMI_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+      - frontend
+      - umami
+
+volumes:
+  caddy_data:
+  caddy_config:

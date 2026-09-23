@@ -1,0 +1,13 @@
+{$DOMAIN} {
+	@backend path /api/* /django-admin/* /static/* /media/*
+	handle @backend {
+		reverse_proxy backend:8000
+	}
+	handle {
+		reverse_proxy frontend:3000
+	}
+}
+
+{$UMAMI_DOMAIN} {
+	reverse_proxy umami:3000
+}
