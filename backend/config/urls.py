@@ -1,7 +1,7 @@
 from django.conf import settings
-from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
+from django.views.static import serve as serve_static
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from catalog.auth_views import StaffTokenObtainPairView
@@ -15,4 +15,13 @@ urlpatterns = [
     path("api/", include("catalog.urls")),
 ]
 
-urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# django.conf.urls.static.static() is a DEBUG-only no-op internally, even
+# without the usual "if settings.DEBUG" guard around it — so media is
+# served directly via the underlying view here to also work in production.
+urlpatterns += [
+    re_path(
+        r"^%s(?P<path>.*)$" % settings.MEDIA_URL.lstrip("/"),
+        serve_static,
+        {"document_root": settings.MEDIA_ROOT},
+    ),
+]
