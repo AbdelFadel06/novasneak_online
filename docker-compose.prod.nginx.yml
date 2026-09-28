@@ -18,10 +18,12 @@ services:
       dockerfile: Dockerfile.prod
       args:
         NEXT_PUBLIC_API_URL: https://${DOMAIN}/api
+        NEXT_PUBLIC_SITE_URL: https://${DOMAIN}
         NEXT_PUBLIC_UMAMI_SRC: https://${UMAMI_DOMAIN}/script.js
         NEXT_PUBLIC_UMAMI_WEBSITE_ID: ${NEXT_PUBLIC_UMAMI_WEBSITE_ID:-}
     environment:
       NEXT_PUBLIC_API_URL: https://${DOMAIN}/api
+      NEXT_PUBLIC_SITE_URL: https://${DOMAIN}
       NEXT_PUBLIC_UMAMI_SRC: https://${UMAMI_DOMAIN}/script.js
       NEXT_PUBLIC_UMAMI_WEBSITE_ID: ${NEXT_PUBLIC_UMAMI_WEBSITE_ID:-}
     ports:

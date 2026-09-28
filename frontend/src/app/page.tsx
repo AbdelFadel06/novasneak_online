@@ -9,7 +9,13 @@ import ProductGridSkeleton from "@/components/ProductGridSkeleton";
 import FilterDropdown from "@/components/FilterDropdown";
 import ProductModal from "@/components/ProductModal";
 import CartDrawer from "@/components/CartDrawer";
-import { CartIcon } from "@/components/icons";
+import { CartIcon, InstagramIcon, TikTokIcon, WhatsAppIcon } from "@/components/icons";
+
+const SOCIAL_LINKS = {
+  instagram: "https://www.instagram.com/novasneak.shop.bj",
+  tiktok: "https://www.tiktok.com/@novasneak.shop.bj",
+  whatsapp: "https://wa.me/message/E6ZBK3RS73RAJ1",
+};
 
 // docker compose up can take 15-20s before the backend actually answers
 // requests (waiting on the db healthcheck, migrations, collectstatic...).
@@ -153,6 +159,10 @@ export default function HomePage() {
         <h2 className="relative text-5xl font-bold uppercase tracking-tight text-neutral-900 md:text-6xl">
           Sneakers
         </h2>
+        <p className="relative mt-2 max-w-xl text-sm text-neutral-500">
+          Vente de sneakers et baskets a Cotonou et Calavi, livraison partout au Benin.
+          Commande directe via WhatsApp.
+        </p>
       </div>
 
       <div className="flex items-start gap-4 px-6 pb-8 pt-4 md:px-10">
@@ -203,6 +213,49 @@ export default function HomePage() {
           )}
         </div>
       </div>
+
+      <footer className="border-t border-neutral-200 px-6 py-8 md:px-10">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="max-w-md">
+            <p className="text-xs text-neutral-500">
+              NovaSneak - Vente en ligne de sneakers et baskets, livraison a Cotonou, Calavi
+              et partout au Benin. Nike, Adidas, New Balance, Jordan, Puma, Converse.
+            </p>
+            <p className="mt-1 text-[11px] text-neutral-400">
+              Points de retrait : Missebo &amp; Akpakpa (Cotonou)
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <a
+              href={SOCIAL_LINKS.instagram}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="NovaSneak sur Instagram"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-neutral-200 text-neutral-600 transition-colors hover:border-neutral-900 hover:text-neutral-900"
+            >
+              <InstagramIcon className="h-4 w-4" />
+            </a>
+            <a
+              href={SOCIAL_LINKS.tiktok}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="NovaSneak sur TikTok"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-neutral-200 text-neutral-600 transition-colors hover:border-neutral-900 hover:text-neutral-900"
+            >
+              <TikTokIcon className="h-4 w-4" />
+            </a>
+            <a
+              href={SOCIAL_LINKS.whatsapp}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="NovaSneak sur WhatsApp"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-neutral-200 text-neutral-600 transition-colors hover:border-neutral-900 hover:text-neutral-900"
+            >
+              <WhatsAppIcon className="h-4 w-4" />
+            </a>
+          </div>
+        </div>
+      </footer>
 
       {selectedProduct && settings && (
         <ProductModal
