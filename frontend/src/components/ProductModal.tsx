@@ -1,11 +1,15 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Product, StoreSettings } from "@/lib/types";
 import { resolveMediaUrl } from "@/lib/api";
 import { useCartStore } from "@/lib/cart-store";
 import { trackEvent } from "@/lib/analytics";
+
+// Below this, a horizontal drag/swipe counts as an intentional page change
+// rather than an accidental wobble.
+const SWIPE_THRESHOLD_PX = 50;
 
 interface ProductModalProps {
   product: Product;
@@ -22,6 +26,7 @@ export default function ProductModal({ product, settings, onClose }: ProductModa
   const [colorNote, setColorNote] = useState("");
   const [error, setError] = useState("");
   const addItem = useCartStore((s) => s.addItem);
+  const dragStartX = useRef<number | null>(null);
 
   const sizes = useMemo(() => {
     const list: number[] = [];
@@ -31,6 +36,52 @@ export default function ProductModal({ product, settings, onClose }: ProductModa
 
   const unitPrice = withBox ? product.price : product.price - settings.box_discount;
   const images = product.images;
+
+  function goToPrev() {
+    setActiveImage((i) => (i - 1 + images.length) % images.length);
+  }
+
+  function goToNext() {
+    setActiveImage((i) => (i + 1) % images.length);
+  }
+
+  useEffect(() => {
+    if (images.length < 2) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "ArrowLeft") goToPrev();
+      else if (e.key === "ArrowRight") goToNext();
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [images.length]);
+
+  function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    dragStartX.current = e.clientX;
+  }
+
+  // Single decision point for both gestures: a mouseup/touchend on the same
+  // element also fires a click, so handling tap-vs-swipe here (instead of
+  // splitting drag into mouse/touch handlers plus a separate onClick) is
+  // what keeps them from firing twice and cancelling each other out.
+  function handlePointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    if (dragStartX.current === null || images.length < 2) {
+      dragStartX.current = null;
+      return;
+    }
+    const delta = e.clientX - dragStartX.current;
+    dragStartX.current = null;
+    if (Math.abs(delta) >= SWIPE_THRESHOLD_PX) {
+      if (delta < 0) goToNext();
+      else goToPrev();
+      return;
+    }
+    // Tap zones a la Instagram: right half advances, left half goes back.
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickedRight = e.clientX - rect.left > rect.width / 2;
+    if (clickedRight) goToNext();
+    else goToPrev();
+  }
 
   function handleAddToCart() {
     if (!size) {
@@ -53,8 +104,14 @@ export default function ProductModal({ product, settings, onClose }: ProductModa
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="relative flex max-h-[85vh] w-full max-w-4xl flex-col overflow-y-auto rounded-2xl bg-white md:max-h-[80vh] md:flex-row">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative flex max-h-[85vh] w-full max-w-4xl flex-col overflow-y-auto rounded-2xl bg-white md:max-h-[80vh] md:flex-row"
+      >
         <button
           onClick={onClose}
           className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white text-lg font-bold shadow"
@@ -63,13 +120,17 @@ export default function ProductModal({ product, settings, onClose }: ProductModa
         </button>
 
         <div className="flex w-full flex-col gap-2 bg-card p-5 md:w-1/2">
-          <div className="relative h-72 w-full overflow-hidden rounded-xl bg-card sm:h-80 md:h-[26rem]">
+          <div
+            className="relative h-72 w-full touch-pan-y select-none overflow-hidden rounded-xl bg-card sm:h-80 md:h-[26rem]"
+            onPointerDown={handlePointerDown}
+            onPointerUp={handlePointerUp}
+          >
             {images[activeImage] && !failedImages.has(images[activeImage].id) ? (
               <Image
                 src={resolveMediaUrl(images[activeImage].image)}
                 alt={`${product.brand} ${product.name}`}
                 fill
-                className="object-cover"
+                className="pointer-events-none object-cover"
                 sizes="50vw"
                 onError={() =>
                   setFailedImages((prev) => new Set(prev).add(images[activeImage].id))
@@ -78,6 +139,18 @@ export default function ProductModal({ product, settings, onClose }: ProductModa
             ) : (
               <div className="flex h-full w-full items-center justify-center text-neutral-400">
                 Pas d&apos;image
+              </div>
+            )}
+            {images.length > 1 && (
+              <div className="pointer-events-none absolute left-1/2 top-3 flex -translate-x-1/2 gap-1">
+                {images.map((img, idx) => (
+                  <span
+                    key={img.id}
+                    className={`h-1 rounded-full transition-all duration-300 ${
+                      idx === activeImage ? "w-4 bg-white" : "w-1 bg-white/60"
+                    }`}
+                  />
+                ))}
               </div>
             )}
           </div>

@@ -30,8 +30,11 @@ export default function CartDrawer({ settings, onClose }: CartDrawerProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/50">
-      <div className="flex h-full w-full max-w-md flex-col bg-white">
+    <div onClick={onClose} className="fixed inset-0 z-50 flex justify-end bg-black/50">
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="flex h-full w-full max-w-md flex-col bg-white"
+      >
         <div className="flex items-center justify-between border-b border-neutral-200 p-5">
           <h2 className="flex items-center gap-2 text-lg font-bold uppercase tracking-wide">
             <CartIcon className="h-5 w-5" />
