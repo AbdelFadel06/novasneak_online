@@ -17,6 +17,7 @@ export default function CartDrawer({ settings, onClose }: CartDrawerProps) {
   const items = useCartStore((s) => s.items);
   const removeItem = useCartStore((s) => s.removeItem);
   const updateQuantity = useCartStore((s) => s.updateQuantity);
+  const clearCart = useCartStore((s) => s.clear);
   const totalPrice = useCartStore((s) => s.totalPrice());
 
   function handleCheckout() {
@@ -27,6 +28,9 @@ export default function CartDrawer({ settings, onClose }: CartDrawerProps) {
     window.open(link, "_blank");
     trackEvent("checkout_whatsapp", { total: totalPrice, items: items.length });
     createOrder(items);
+    // Otherwise the same items are still there next visit, as if nothing
+    // had been ordered.
+    clearCart();
   }
 
   return (
