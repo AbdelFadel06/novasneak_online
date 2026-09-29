@@ -6,3 +6,16 @@ body {
   background-color: #f5f5f3;
   color: #171717;
 }
+
+/* iOS/Android auto-zoom on focus when an input's font-size is under 16px -
+   forcing 16px here (mobile only, so desktop sizing is untouched) stops the
+   viewport from zooming/panning when a field is tapped. !important is
+   needed since a bare element selector loses to the text-sm etc. utility
+   classes already on these inputs. */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
