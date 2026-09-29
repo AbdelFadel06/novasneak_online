@@ -47,10 +47,19 @@ export default function HomePage() {
   const [error, setError] = useState("");
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [priceMax, setPriceMax] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
   const cartTotalItems = useCartStore((s) => s.totalItems());
   const [reloadKey, setReloadKey] = useState(0);
+
+  // Wait for the user to pause typing before hitting the API, so every
+  // keystroke doesn't fire a request.
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(timeout);
+  }, [search]);
 
   // The cart is persisted to localStorage, which the server can't see, so
   // the first client render must match the server's empty-cart output. Only
@@ -94,13 +103,19 @@ export default function HomePage() {
   // the error state of, the initial load — a plain function of current
   // filter state, so it's immune to React's dev-mode double effect
   // invocation (unlike the earlier "first run" ref, which broke under it).
+  const hasActiveFilter = selectedBrands.length > 0 || priceMax !== null || debouncedSearch !== "";
+
   useEffect(() => {
-    if (selectedBrands.length === 0 && priceMax === null) return;
+    if (!hasActiveFilter) return;
     const controller = new AbortController();
     withRetry(
       () =>
         fetchProducts(
-          { brands: selectedBrands.length ? selectedBrands : undefined, price_max: priceMax ?? undefined },
+          {
+            brands: selectedBrands.length ? selectedBrands : undefined,
+            price_max: priceMax ?? undefined,
+            search: debouncedSearch || undefined,
+          },
           controller.signal
         ),
       controller.signal
@@ -111,13 +126,12 @@ export default function HomePage() {
         setError("Impossible de charger les produits.");
       });
     return () => controller.abort();
-  }, [selectedBrands, priceMax]);
+  }, [selectedBrands, priceMax, debouncedSearch, hasActiveFilter]);
 
   // No filter active -> always show the full, already-loaded catalogue
   // (never stale). A filter is active -> show its result, falling back to
   // the full list while that fetch is still in flight.
-  const displayedProducts =
-    selectedBrands.length === 0 && priceMax === null ? allProducts : filteredProducts ?? allProducts;
+  const displayedProducts = hasActiveFilter ? filteredProducts ?? allProducts : allProducts;
 
   const brands = useMemo(
     () => Array.from(new Set(allProducts.map((p) => p.brand))).sort(),
@@ -173,6 +187,17 @@ export default function HomePage() {
         </div>
 
         <div className="flex-1">
+          <div className="relative mb-4 max-w-sm">
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Rechercher par nom ou marque..."
+              aria-label="Rechercher un produit par nom ou marque"
+              className="w-full rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none"
+            />
+          </div>
+
           <div className="mb-6 flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-widest text-neutral-400">
               {loading

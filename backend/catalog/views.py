@@ -1,5 +1,6 @@
 import django_filters
-from rest_framework import generics, status
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters, generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -24,6 +25,10 @@ class ProductListView(generics.ListAPIView):
     queryset = Product.objects.filter(active=True).prefetch_related("images")
     serializer_class = ProductSerializer
     filterset_class = ProductFilter
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    # ?search= matches either field (case-insensitive, partial) - covers
+    # "recherche par nom ou marque".
+    search_fields = ["name", "brand"]
 
 
 class ProductDetailView(generics.RetrieveAPIView):

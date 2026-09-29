@@ -6,6 +6,7 @@ const API_BASE_URL =
 export interface ProductFilters {
   brands?: string[];
   price_max?: number;
+  search?: string;
 }
 
 export async function fetchProducts(
@@ -17,6 +18,7 @@ export async function fetchProducts(
     params.set("brand", filters.brands.join(","));
   }
   if (filters.price_max) params.set("price_max", String(filters.price_max));
+  if (filters.search && filters.search.trim()) params.set("search", filters.search.trim());
 
   const query = params.toString();
   const res = await fetch(`${API_BASE_URL}/products/${query ? `?${query}` : ""}`, {
