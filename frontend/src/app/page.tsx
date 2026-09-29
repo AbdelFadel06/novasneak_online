@@ -57,7 +57,11 @@ export default function HomePage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
+  // Two inputs exist (desktop pill + mobile row below the header), toggled
+  // by CSS breakpoint, never both visible - focusing both is safe, only the
+  // one actually on screen can receive it.
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const mobileSearchInputRef = useRef<HTMLInputElement>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
   const cartTotalItems = useCartStore((s) => s.totalItems());
@@ -71,7 +75,9 @@ export default function HomePage() {
   }, [search]);
 
   useEffect(() => {
-    if (searchOpen) searchInputRef.current?.focus();
+    if (!searchOpen) return;
+    searchInputRef.current?.focus();
+    mobileSearchInputRef.current?.focus();
   }, [searchOpen]);
 
   function closeSearch() {
@@ -166,42 +172,48 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen bg-surface">
-      <header className="sticky top-0 z-10 flex items-center justify-between gap-3 bg-surface/90 px-6 py-5 backdrop-blur md:px-10">
-        {searchOpen ? (
-          <div className="flex flex-1 items-center gap-2">
-            <SearchIcon className="h-4 w-4 shrink-0 text-neutral-400" />
-            <input
-              ref={searchInputRef}
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Rechercher par nom ou marque..."
-              aria-label="Rechercher un produit par nom ou marque"
-              className="w-full bg-transparent text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none"
-            />
-            <button
-              onClick={closeSearch}
-              aria-label="Fermer la recherche"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-900/5"
-            >
-              <CloseIcon className="h-4 w-4" />
-            </button>
-          </div>
-        ) : (
+      <header className="sticky top-0 z-10 bg-surface/90 backdrop-blur">
+        <div className="flex items-center justify-between gap-3 px-6 py-5 md:px-10">
           <h1 className="text-lg font-bold uppercase tracking-tight text-neutral-900">
             {settings?.store_name || "NovaSneak"}
           </h1>
-        )}
 
-        {!searchOpen && (
-          <div className="flex shrink-0 items-center gap-2">
-            <button
-              onClick={() => setSearchOpen(true)}
-              aria-label="Rechercher un produit"
-              className="flex h-10 w-10 items-center justify-center rounded-full text-neutral-900 transition-colors hover:bg-neutral-900/5"
+          <div className="flex items-center gap-2">
+            {/* Desktop: the black circle widens in place into a pill with an input. */}
+            <div
+              className={`hidden h-10 items-center overflow-hidden rounded-full bg-neutral-900 text-white transition-[width] duration-300 ease-out md:flex ${
+                searchOpen ? "w-64" : "w-10"
+              }`}
             >
-              <SearchIcon className="h-4 w-4" />
+              <button
+                onClick={() => (searchOpen ? closeSearch() : setSearchOpen(true))}
+                aria-label={searchOpen ? "Fermer la recherche" : "Rechercher un produit"}
+                className="flex h-10 w-10 shrink-0 items-center justify-center"
+              >
+                {searchOpen ? <CloseIcon className="h-4 w-4" /> : <SearchIcon className="h-4 w-4" />}
+              </button>
+              {searchOpen && (
+                <input
+                  ref={searchInputRef}
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Rechercher..."
+                  aria-label="Rechercher un produit par nom ou marque"
+                  className="w-full min-w-0 bg-transparent pr-4 text-sm text-white placeholder:text-neutral-400 focus:outline-none"
+                />
+              )}
+            </div>
+
+            {/* Mobile: stays a fixed circle - the input opens on its own line below. */}
+            <button
+              onClick={() => (searchOpen ? closeSearch() : setSearchOpen(true))}
+              aria-label={searchOpen ? "Fermer la recherche" : "Rechercher un produit"}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-900 text-white md:hidden"
+            >
+              {searchOpen ? <CloseIcon className="h-4 w-4" /> : <SearchIcon className="h-4 w-4" />}
             </button>
+
             <button
               onClick={() => setCartOpen(true)}
               className="relative flex h-10 items-center gap-2 rounded-full bg-neutral-900 pl-4 pr-5 text-xs font-bold uppercase tracking-widest text-white"
@@ -214,6 +226,23 @@ export default function HomePage() {
                 </span>
               )}
             </button>
+          </div>
+        </div>
+
+        {searchOpen && (
+          <div className="flex justify-center px-6 pb-4 md:hidden">
+            <div className="flex h-10 w-full max-w-sm items-center gap-2 rounded-full bg-neutral-900 px-4 text-white">
+              <SearchIcon className="h-4 w-4 shrink-0 text-neutral-400" />
+              <input
+                ref={mobileSearchInputRef}
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Rechercher par nom ou marque..."
+                aria-label="Rechercher un produit par nom ou marque"
+                className="w-full min-w-0 bg-transparent text-sm text-white placeholder:text-neutral-400 focus:outline-none"
+              />
+            </div>
           </div>
         )}
       </header>
