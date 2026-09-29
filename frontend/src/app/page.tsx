@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchProducts, fetchSettings } from "@/lib/api";
 import { Product, StoreSettings } from "@/lib/types";
 import { useCartStore } from "@/lib/cart-store";
@@ -9,7 +9,14 @@ import ProductGridSkeleton from "@/components/ProductGridSkeleton";
 import FilterDropdown from "@/components/FilterDropdown";
 import ProductModal from "@/components/ProductModal";
 import CartDrawer from "@/components/CartDrawer";
-import { CartIcon, InstagramIcon, TikTokIcon, WhatsAppIcon } from "@/components/icons";
+import {
+  CartIcon,
+  CloseIcon,
+  InstagramIcon,
+  SearchIcon,
+  TikTokIcon,
+  WhatsAppIcon,
+} from "@/components/icons";
 
 const SOCIAL_LINKS = {
   instagram: "https://www.instagram.com/novasneak.shop.bj",
@@ -49,6 +56,8 @@ export default function HomePage() {
   const [priceMax, setPriceMax] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
   const cartTotalItems = useCartStore((s) => s.totalItems());
@@ -60,6 +69,15 @@ export default function HomePage() {
     const timeout = setTimeout(() => setDebouncedSearch(search.trim()), 300);
     return () => clearTimeout(timeout);
   }, [search]);
+
+  useEffect(() => {
+    if (searchOpen) searchInputRef.current?.focus();
+  }, [searchOpen]);
+
+  function closeSearch() {
+    setSearchOpen(false);
+    setSearch("");
+  }
 
   // The cart is persisted to localStorage, which the server can't see, so
   // the first client render must match the server's empty-cart output. Only
@@ -148,22 +166,56 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen bg-surface">
-      <header className="sticky top-0 z-10 flex items-center justify-between bg-surface/90 px-6 py-5 backdrop-blur md:px-10">
-        <h1 className="text-lg font-bold uppercase tracking-tight text-neutral-900">
-          {settings?.store_name || "NovaSneak"}
-        </h1>
-        <button
-          onClick={() => setCartOpen(true)}
-          className="relative flex h-10 items-center gap-2 rounded-full bg-neutral-900 pl-4 pr-5 text-xs font-bold uppercase tracking-widest text-white"
-        >
-          <CartIcon className="h-4 w-4" />
-          Panier
-          {totalItems > 0 && (
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[11px] font-bold text-neutral-900">
-              {totalItems}
-            </span>
-          )}
-        </button>
+      <header className="sticky top-0 z-10 flex items-center justify-between gap-3 bg-surface/90 px-6 py-5 backdrop-blur md:px-10">
+        {searchOpen ? (
+          <div className="flex flex-1 items-center gap-2">
+            <SearchIcon className="h-4 w-4 shrink-0 text-neutral-400" />
+            <input
+              ref={searchInputRef}
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Rechercher par nom ou marque..."
+              aria-label="Rechercher un produit par nom ou marque"
+              className="w-full bg-transparent text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none"
+            />
+            <button
+              onClick={closeSearch}
+              aria-label="Fermer la recherche"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-900/5"
+            >
+              <CloseIcon className="h-4 w-4" />
+            </button>
+          </div>
+        ) : (
+          <h1 className="text-lg font-bold uppercase tracking-tight text-neutral-900">
+            {settings?.store_name || "NovaSneak"}
+          </h1>
+        )}
+
+        {!searchOpen && (
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              onClick={() => setSearchOpen(true)}
+              aria-label="Rechercher un produit"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-neutral-900 transition-colors hover:bg-neutral-900/5"
+            >
+              <SearchIcon className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setCartOpen(true)}
+              className="relative flex h-10 items-center gap-2 rounded-full bg-neutral-900 pl-4 pr-5 text-xs font-bold uppercase tracking-widest text-white"
+            >
+              <CartIcon className="h-4 w-4" />
+              Panier
+              {totalItems > 0 && (
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[11px] font-bold text-neutral-900">
+                  {totalItems}
+                </span>
+              )}
+            </button>
+          </div>
+        )}
       </header>
 
       <div className="relative overflow-hidden px-6 pb-2 pt-4 md:px-10">
@@ -187,17 +239,6 @@ export default function HomePage() {
         </div>
 
         <div className="flex-1">
-          <div className="relative mb-4 max-w-sm">
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Rechercher par nom ou marque..."
-              aria-label="Rechercher un produit par nom ou marque"
-              className="w-full rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none"
-            />
-          </div>
-
           <div className="mb-6 flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-widest text-neutral-400">
               {loading
